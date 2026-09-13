@@ -1,8 +1,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // TODO: Supabase 프로젝트를 만든 뒤 아래 두 값을 넣으세요.
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://qrqhqkzqncfyzcrzmltd.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_rR59AGdR8PF2VvIHc4TbjA_tte7SP3J';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const lobbyScreen = document.querySelector('#lobby-screen');
