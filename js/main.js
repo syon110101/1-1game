@@ -9,8 +9,19 @@ const waitingScreen = $('#waiting-screen');
 const gameScreen = $('#game-screen');
 const joinButton = $('#join-button');
 
-const playerId = localStorage.getItem('duel_player_id') || crypto.randomUUID();
-localStorage.setItem('duel_player_id', playerId);
+// Some browsers/privacy modes block localStorage. window.name survives a reload
+// in the same tab and does not require the Storage API.
+function getPlayerId() {
+  try {
+    if (typeof window.name === 'string' && window.name.startsWith('duel:')) return window.name.slice(5);
+    const id = crypto.randomUUID();
+    try { window.name = `duel:${id}`; } catch (_) {}
+    return id;
+  } catch (_) {
+    return crypto.randomUUID();
+  }
+}
+const playerId = getPlayerId();
 
 let currentRoom = null;
 let roomChannel = null;
@@ -47,6 +58,9 @@ function myPlayer(state) { return state.players[playerId]; }
 function enemyPlayer(state) { return Object.values(state.players).find(p => p.id !== playerId); }
 function isHost() { return currentRoom?.player1_id === playerId; }
 function isStale(timestamp) { return !timestamp || Date.now() - new Date(timestamp).getTime() > ROOM_STALE_MS; }
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function chance(percent) { return Math.random() * 100 < percent; }
 
 function showWaiting(message) {
   $('#waiting-room-code').textContent = currentRoom?.room_code ?? $('#room-code').value;
@@ -82,10 +96,10 @@ function renderState(state) {
   const me = myPlayer(state), enemy = enemyPlayer(state);
   $('#my-name').textContent = me.name;
   $('#enemy-name').textContent = enemy?.name ?? '상대';
-  $('#my-hp').style.width = `${Math.max(0, me.hp)}%`;
-  $('#enemy-hp').style.width = `${Math.max(0, enemy?.hp ?? 0)}%`;
-  $('#my-hp-text').textContent = `${me.hp} / ${MAX_HP}`;
-  $('#enemy-hp-text').textContent = `${enemy?.hp ?? 0} / ${MAX_HP}`;
+  $('#my-hp').style.width = `${clamp(me.hp,0,100)}%`;
+  $('#enemy-hp').style.width = `${clamp(enemy?.hp ?? 0,0,100)}%`;
+  $('#my-hp-text').textContent = `${Math.max(0,me.hp)} / ${MAX_HP}`;
+  $('#enemy-hp-text').textContent = `${Math.max(0,enemy?.hp ?? 0)} / ${MAX_HP}`;
   $('#my-status').innerHTML = formatStatus(me);
   $('#enemy-status').innerHTML = formatStatus(enemy);
   $('#turn-number').textContent = `턴 ${state.turn}`;
@@ -95,6 +109,7 @@ function renderState(state) {
 
 function addLog(text) {
   const log = $('#battle-log-list');
+  if (!log || !text) return;
   const p = document.createElement('p');
   p.textContent = text;
   log.appendChild(p);
@@ -104,8 +119,8 @@ function addLog(text) {
 function updateButtons(state) {
   const me = myPlayer(state);
   document.querySelectorAll('[data-action]').forEach(button => {
-    let disabled = state.phase === 'finished' || Boolean(myAction) || me.stun > 0 || me.rest > 0;
-    if (button.dataset.action === 'advanced' && me.advancedBlock > 0) disabled = true;
+    let disabled = state.phase === 'finished' || Boolean(myAction) || !me || me.stun > 0 || me.rest > 0;
+    if (button.dataset.action === 'advanced' && me?.advancedBlock > 0) disabled = true;
     button.disabled = disabled;
   });
 }
@@ -154,7 +169,7 @@ async function ensureGameStarted() {
     currentRoom = data;
   }
   if (currentRoom.status === 'starting') showWaiting('상대가 입장했습니다. 잠시 후 시작합니다!');
-  if (currentRoom.status === 'playing' || currentRoom.status === 'finished') {
+  if ((currentRoom.status === 'playing' || currentRoom.status === 'finished') && currentRoom.game_state) {
     showGame(currentRoom.game_state);
     startTimer(currentRoom.turn_started_at);
   }
@@ -163,18 +178,9 @@ async function ensureGameStarted() {
 async function resetRoomForNewPlayer(existing, name) {
   await supabase.from('game_actions').delete().eq('room_code', existing.room_code);
   const { data, error } = await supabase.from('rooms').update({
-    player1_name:name,
-    player1_id:playerId,
-    player1_seen_at:new Date().toISOString(),
-    player2_name:null,
-    player2_id:null,
-    player2_seen_at:null,
-    status:'waiting',
-    game_state:null,
-    turn:1,
-    turn_started_at:null,
-    winner_id:null,
-    winner_name:null
+    player1_name:name, player1_id:playerId, player1_seen_at:new Date().toISOString(),
+    player2_name:null, player2_id:null, player2_seen_at:null,
+    status:'waiting', game_state:null, turn:1, turn_started_at:null, winner_id:null, winner_name:null
   }).eq('room_code', existing.room_code).select().single();
   if (error) throw error;
   return data;
@@ -249,6 +255,168 @@ function subscribe(roomCode) {
   actionChannel = supabase.channel(`actions-${roomCode}-${playerId}`).on('postgres_changes', { event:'INSERT', schema:'public', table:'game_actions', filter:`room_code=eq.${roomCode}` }, async () => { await checkForResolution(); }).subscribe();
 }
 
+function rollAttack(p) {
+  const luck = clamp(p.luck,0,100);
+  const bonus = Math.min(15, luck);
+  let high = 30 + bonus;
+  let normal = 50 - Math.floor(bonus * 0.5);
+  if (p.basicDebuff > 0) { high *= 0.85; normal *= 0.85; }
+  const r = Math.random()*100;
+  if (r < high) return { power:rand(16,30), label:'강공격' };
+  if (r < high + normal) return { power:rand(5,15), label:'일반 공격' };
+  return { power:0, label:'빗나감' };
+}
+
+function rollDefense(p) {
+  const max = Math.round(20 + Math.min(5, p.luck / 2));
+  return rand(0,max);
+}
+
+function basicDamage(target, amount) {
+  if (amount <= 0) return 0;
+  if (target.invincible > 0) return 0;
+  const reduced = target.shield > 0 ? Math.ceil(amount * 0.5) : amount;
+  target.hp = clamp(target.hp - reduced,0,MAX_HP);
+  return reduced;
+}
+
+function applyHeal(p) {
+  const amount = rand(0,20);
+  p.hp = clamp(p.hp + amount,0,MAX_HP);
+  let text = `${p.name} 회복 ${amount}`;
+  if (chance(50)) { p.luck = clamp(p.luck + 10,0,100); p.luckBoostTurns = 2; text += ', 운 상승!'; }
+  return text;
+}
+
+function skillRoll(enemy) {
+  const r = Math.random()*100;
+  if (enemy.hp <= 30 && r < 5) return 'execute';
+  if (r < 20) return 'vampire';
+  if (r < 35) return 'stun';
+  if (r < 45) return 'confusion';
+  if (r < 65) return 'bleed';
+  if (r < 75) return 'invincible';
+  return 'shield';
+}
+
+function advancedAction(actor, enemy) {
+  if (actor.advancedBlock > 0) return `${actor.name}은(는) 고급행동을 사용할 수 없습니다.`;
+  if (chance(40)) {
+    const skill = skillRoll(enemy);
+    if (skill === 'vampire') {
+      const dmg = rand(0,20); const dealt = basicDamage(enemy,dmg); const heal = Math.round(dealt*0.8); actor.hp = clamp(actor.hp+heal,0,MAX_HP);
+      return `${actor.name} 흡혈 성공! ${enemy.name}에게 ${dealt} 피해, ${heal} 회복`;
+    }
+    if (skill === 'stun') { enemy.stun = 1; return `${actor.name} 스턴 성공!`; }
+    if (skill === 'confusion') { if (enemy.stun <= 0) enemy.confusion = 1; return `${actor.name} 혼란 성공!`; }
+    if (skill === 'bleed') { enemy.bleed = rand(5,10); enemy.bleedTurns = 3; return `${actor.name} 출혈 성공!`; }
+    if (skill === 'invincible') { actor.invincible = 1; return `${actor.name} 무적 발동!`; }
+    if (skill === 'shield') { if (actor.invincible <= 0) actor.shield = 2; return `${actor.name} 보호막 발동!`; }
+    if (skill === 'execute') { enemy.hp = 0; return `${actor.name} 처형 성공!`; }
+  }
+  actor.advancedBlock = 2;
+  actor.basicDebuff = Math.max(actor.basicDebuff, 1);
+  const r = Math.random()*100;
+  if (r < 30) actor.basicDebuff = Math.max(actor.basicDebuff,3);
+  else if (r < 60) actor.rest = 1;
+  else if (r < 75) actor.advancedBlock = Math.max(actor.advancedBlock,3);
+  else if (r >= 90) { actor.basicDebuff=0; actor.rest=0; actor.advancedBlock=0; }
+  return `${actor.name} 고급행동 실패! 다음 행동에 불이익이 생깁니다.`;
+}
+
+function resolveTurn(state, actionsById) {
+  const ids = Object.keys(state.players);
+  const a = state.players[ids[0]], b = state.players[ids[1]];
+  let logs = [];
+  for (const p of [a,b]) {
+    if (p.bleedTurns > 0) {
+      const dealt = basicDamage(p,p.bleed);
+      logs.push(`${p.name} 출혈로 ${dealt} 피해`);
+      p.bleedTurns--;
+      if (p.bleedTurns <= 0) p.bleed = 0;
+    }
+  }
+  const effective = {};
+  for (const id of ids) {
+    const p = state.players[id];
+    let act = actionsById[id];
+    if (p.confusion > 0) { act = ACTIONS[rand(0,3)]; p.confusion--; logs.push(`${p.name}의 혼란으로 행동이 바뀌었습니다.`); }
+    if (p.stun > 0) { act = null; p.stun--; logs.push(`${p.name}은(는) 스턴으로 행동하지 못했습니다.`); }
+    if (p.rest > 0) { act = null; p.rest--; logs.push(`${p.name}은(는) 휴식 상태입니다.`); }
+    effective[id] = act;
+  }
+
+  const attackResults = {};
+  for (const id of ids) {
+    const enemy = state.players[id === ids[0] ? ids[1] : ids[0]];
+    const p = state.players[id];
+    const act = effective[id];
+    if (act === 'attack') attackResults[id] = rollAttack(p);
+  }
+
+  for (const id of ids) {
+    const enemyId = id === ids[0] ? ids[1] : ids[0];
+    const p = state.players[id], enemy = state.players[enemyId];
+    const act = effective[id], enemyAct = effective[enemyId];
+    if (act === 'heal') logs.push(applyHeal(p));
+    if (act === 'advanced') logs.push(advancedAction(p,enemy));
+    if (act === 'defend') logs.push(`${p.name} 방어 ${rollDefense(p)}`);
+  }
+
+  for (const id of ids) {
+    const enemyId = id === ids[0] ? ids[1] : ids[0];
+    const p = state.players[id], enemy = state.players[enemyId];
+    const act = effective[id], enemyAct = effective[enemyId];
+    if (enemyAct === 'attack' && attackResults[enemyId]) {
+      const ar = attackResults[enemyId];
+      if (act === 'defend') {
+        const defense = rollDefense(p);
+        const dealt = basicDamage(p,Math.max(0,ar.power-defense));
+        logs.push(`${enemy.name}의 ${ar.label} → ${p.name} 방어 ${defense}, ${dealt} 피해`);
+      } else if (act === 'counter') {
+        const success = clamp(60 - ar.power/2 + p.luck/2,0,80);
+        if (chance(success)) {
+          const dealt = basicDamage(enemy,ar.power);
+          logs.push(`${p.name} 역공 성공! ${dealt} 피해`);
+        } else {
+          const dealt = basicDamage(p,Math.round(ar.power*1.1));
+          logs.push(`${p.name} 역공 실패! ${dealt} 피해`);
+        }
+      } else if (act !== 'advanced' && act !== 'heal' && act !== 'attack') {
+        const dealt = basicDamage(p,ar.power);
+        logs.push(`${enemy.name}의 ${ar.label} → ${p.name} ${dealt} 피해`);
+      }
+    }
+  }
+
+  if (effective[ids[0]] === 'attack' && effective[ids[1]] === 'attack') {
+    for (const id of ids) {
+      const enemyId = id === ids[0] ? ids[1] : ids[0];
+      const ar = attackResults[id];
+      if (ar && ar.power > 0) {
+        const dealt = basicDamage(state.players[enemyId],ar.power);
+        logs.push(`${state.players[id].name}의 ${ar.label} → ${dealt} 피해`);
+      } else logs.push(`${state.players[id].name} 공격 ${ar?.label ?? '없음'}`);
+    }
+  }
+
+  for (const p of [a,b]) {
+    if (p.invincible > 0) p.invincible--;
+    if (p.shield > 0) p.shield--;
+    if (p.advancedBlock > 0) p.advancedBlock--;
+    if (p.basicDebuff > 0) p.basicDebuff--;
+    if (p.luckBoostTurns > 0) { p.luckBoostTurns--; if (p.luckBoostTurns === 0) p.luck = Math.max(0,p.luck-10); }
+  }
+
+  if (a.hp <= 0 || b.hp <= 0) {
+    state.phase = 'finished';
+    if (a.hp === b.hp) state.winnerId = null;
+    else state.winnerId = a.hp > b.hp ? a.id : b.id;
+    logs.push(state.winnerId ? `${state.players[state.winnerId].name} 승리!` : '무승부!');
+  }
+  return { text: logs.join(' | ') || '이번 턴에는 특별한 일이 없었습니다.' };
+}
+
 async function chooseAction(action) {
   if (!ACTIONS.includes(action)) return;
   const state = currentRoom?.game_state;
@@ -285,39 +453,23 @@ async function checkForResolution() {
     const actionsById = {};
     ids.forEach(id => actionsById[id] = actionMap[id] ?? null);
     const result = resolveTurn(state, actionsById);
+    const currentTurn = turn;
     const nextTurn = state.phase === 'finished' ? state.turn : state.turn + 1;
     state.turn = nextTurn;
     state.lastResult = result.text;
-    const { data, error:updateError } = await supabase.from('rooms').update({ game_state:state, status:state.phase === 'finished' ? 'finished' : 'playing', turn:nextTurn, turn_started_at:null, winner_id:state.winnerId, winner_name:state.winnerId ? state.players[state.winnerId].name : null }).eq('room_code',currentRoom.room_code).eq('turn',turn).select().maybeSingle();
+    const { data, error:updateError } = await supabase.from('rooms').update({ game_state:state, status:state.phase === 'finished' ? 'finished' : 'playing', turn:nextTurn, turn_started_at:null, winner_id:state.winnerId, winner_name:state.winnerId ? state.players[state.winnerId].name : null }).eq('room_code',currentRoom.room_code).eq('turn',currentTurn).select().maybeSingle();
     if (updateError) throw updateError;
     if (data) currentRoom = data;
+    await supabase.from('game_actions').delete().eq('room_code',currentRoom.room_code).eq('turn',currentTurn);
     myAction = null;
+    resolving = false;
+    showGame(state);
+    startTimer(null);
   } catch (error) {
-    console.error('turn resolve error', error);
-  } finally { resolving = false; }
+    console.error(error);
+    resolving = false;
+  }
 }
 
-function roll(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
-function chance(percent){return Math.random()*100<percent;}
-function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
-function basicDebuffFactor(p){return p.basicDebuff>0?.85:1;}
-function rollAttack(p){const luck=clamp(p.luck,0,30),high=30+Math.min(15,luck),normal=50-Math.floor(Math.min(15,luck)*.5),factor=basicDebuffFactor(p),goodNormal=normal*factor,goodHigh=high*factor,r=Math.random()*100;if(r<100-goodNormal-goodHigh)return{damage:0,power:0,kind:'빗나감'};if(r<100-goodHigh)return{damage:roll(5,15),power:10,kind:'일반 공격'};return{damage:roll(16,30),power:23,kind:'강공격'};}
-function rollDefense(p){return roll(0,Math.round(20+Math.min(5,p.luck/2)));}
-function skillRoll(enemy){let r=Math.random()*100;if(r<20)return'흡혈';r-=20;if(r<15)return'스턴';r-=15;if(r<10)return'혼란';r-=10;if(r<20)return'출혈';r-=20;if(r<10)return'무적';r-=10;if(r<20)return'보호막';return enemy.hp<=30?'처형':'흡혈';}
-function advanced(p){if(chance(40))return{success:true,penalty:''};p.advancedBlock=Math.max(p.advancedBlock,2);p.basicDebuff=Math.max(p.basicDebuff,1);const r=Math.random()*100;if(r<30){p.basicDebuff=Math.max(p.basicDebuff,3);return{success:false,penalty:'기본행동 약화 3턴'};}if(r<60){p.rest=Math.max(p.rest,1);return{success:false,penalty:'1턴 휴식'};}if(r<75){p.advancedBlock=Math.max(p.advancedBlock,3);return{success:false,penalty:'고급행동 금지 3턴'};}if(r<85)return{success:false,penalty:'추가 패널티 없음'};p.advancedBlock=0;p.basicDebuff=0;p.rest=0;return{success:false,penalty:'기본 패널티 제거'};}
-function applyDamage(p,amount){if(amount<=0||p.invincible>0)return 0;if(p.shield>0)amount=Math.ceil(amount*.5);const dealt=Math.round(amount);p.hp=Math.max(0,p.hp-dealt);return dealt;}
-function resolveSkill(p,enemy){const skill=skillRoll(enemy);if(skill==='흡혈'){const raw=roll(0,20),dealt=applyDamage(enemy,raw);p.hp=Math.min(100,p.hp+Math.round(dealt*.8));return`흡혈 ${dealt} 피해, 체력 회복`;}if(skill==='스턴'){enemy.stun=Math.max(enemy.stun,1);return'스턴: 상대의 다음 행동을 막았습니다.';}if(skill==='혼란'){if(!enemy.stun)enemy.confusion=Math.max(enemy.confusion,1);return'혼란: 상대의 다음 행동이 랜덤으로 바뀝니다.';}if(skill==='출혈'){enemy.bleed=roll(5,10);enemy.bleedTurns=3;return`출혈 ${enemy.bleed} 피해가 3턴 지속됩니다.`;}if(skill==='무적'){p.invincible=1;p.shield=0;return'무적: 다음 턴 받는 피해가 0입니다.';}if(skill==='보호막'){p.shield=2;p.invincible=0;return'보호막: 2턴 동안 받는 피해가 50% 감소합니다.';}if(skill==='처형'){if(enemy.hp<=30&&chance(80)){enemy.hp=0;return'처형 성공!';}return'처형 실패';}return'스킬 발동';}
-function effectiveAction(p,action){if(!action||p.stun>0||p.rest>0)return null;if(p.confusion>0)return['attack','defend','counter','heal'][roll(0,3)];return action;}
-function resolveTurn(state,actions){const ids=Object.keys(state.players),a=state.players[ids[0]],b=state.players[ids[1]],logs=[];const act={[ids[0]]:effectiveAction(a,actions[ids[0]]),[ids[1]]:effectiveAction(b,actions[ids[1]])};for(const id of ids)if(!actions[id])logs.push(`${state.players[id].name}은(는) 시간 초과로 행동하지 못했습니다.`);
-  for(const id of ids)if(act[id]==='advanced'){const s=advanced(state.players[id]);logs.push(`${state.players[id].name}: 고급행동 ${s.success?'성공':'실패'}${s.penalty?` (${s.penalty})`:''}`);if(s.success){const enemy=state.players[id===ids[0]?ids[1]:ids[0]];logs.push(`${state.players[id].name}: ${resolveSkill(state.players[id],enemy)}`);}}
-  const results={};for(const id of ids){const p=state.players[id];if(act[id]==='attack')results[id]=rollAttack(p);else if(act[id]==='defend')results[id]={damage:rollDefense(p),power:0,kind:'방어'};else if(act[id]==='counter')results[id]={damage:0,power:0,kind:'역공'};else if(act[id]==='heal'){const h=roll(0,20);p.hp=Math.min(100,p.hp+h);if(chance(50)){p.luck=Math.min(100,p.luck+10);p.luckBoostTurns=2;}logs.push(`${p.name}: 회복 ${h}${p.luckBoostTurns?' / 운 +10%':''}`);}}
-  for(const id of ids){const enemyId=id===ids[0]?ids[1]:ids[0],enemy=state.players[enemyId],p=state.players[id],r=results[id];if(!r||!r.damage)continue;if(act[enemyId]==='defend'){const d=applyDamage(enemy,Math.max(0,r.damage-results[enemyId].damage));logs.push(`${p.name} ${r.kind} ${r.damage} / ${enemy.name} 방어 ${results[enemyId].damage} → ${d} 피해`);}else if(act[enemyId]==='counter'){const success=chance(clamp(60-r.power/2+enemy.luck/2,0,80));if(success){const d=applyDamage(p,r.damage);logs.push(`${enemy.name} 역공 성공 → ${d} 피해를 되돌렸습니다.`);}else{const d=applyDamage(enemy,Math.round(r.damage*1.1));logs.push(`${enemy.name} 역공 실패 → ${d} 피해`);}}else{const d=applyDamage(enemy,r.damage);logs.push(`${p.name} ${r.kind} → ${d} 피해`);}}
-  for(const id of ids){const p=state.players[id];if(p.bleedTurns>0){p.hp=Math.max(0,p.hp-p.bleed);logs.push(`${p.name} 출혈 ${p.bleed} 피해`);p.bleedTurns--;if(!p.bleedTurns)p.bleed=0;}}
-  const dead=ids.find(id=>state.players[id].hp<=0);if(dead){state.phase='finished';state.winnerId=ids.find(id=>id!==dead);logs.push(`${state.players[state.winnerId].name} 승리!`);}
-  for(const id of ids){const p=state.players[id];for(const k of ['invincible','shield','stun','confusion','advancedBlock','basicDebuff','rest'])if(p[k]>0)p[k]--;if(p.luckBoostTurns>0){p.luckBoostTurns--;if(p.luckBoostTurns===0)p.luck=0;}}
-  return{text:logs.join(' ')||'이번 턴에는 변화가 없습니다.'};}
-
-joinButton.addEventListener('click', joinRoom);
+if (joinButton) joinButton.addEventListener('click', joinRoom);
 document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => chooseAction(button.dataset.action)));
-$('#room-code').addEventListener('keydown', e => { if(e.key === 'Enter') joinRoom(); });
-$('#player-name').addEventListener('keydown', e => { if(e.key === 'Enter') $('#room-code').focus(); });
