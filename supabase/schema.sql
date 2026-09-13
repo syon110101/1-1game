@@ -40,8 +40,10 @@ create policy "rooms_update" on public.rooms for update to anon using (true) wit
 
 drop policy if exists "game_actions_select" on public.game_actions;
 drop policy if exists "game_actions_insert" on public.game_actions;
+drop policy if exists "game_actions_delete" on public.game_actions;
 create policy "game_actions_select" on public.game_actions for select to anon using (true);
 create policy "game_actions_insert" on public.game_actions for insert to anon with check (true);
+create policy "game_actions_delete" on public.game_actions for delete to anon using (true);
 
 DO $$
 BEGIN
