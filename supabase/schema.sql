@@ -16,6 +16,8 @@ alter table public.rooms add column if not exists turn integer not null default 
 alter table public.rooms add column if not exists turn_started_at timestamptz;
 alter table public.rooms add column if not exists winner_id text;
 alter table public.rooms add column if not exists winner_name text;
+alter table public.rooms add column if not exists player1_seen_at timestamptz;
+alter table public.rooms add column if not exists player2_seen_at timestamptz;
 
 create table if not exists public.game_actions (
   room_code varchar(4) not null references public.rooms(room_code) on delete cascade,
