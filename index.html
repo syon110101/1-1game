@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1:1 운빨 대전</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="app">
+    <section id="lobby-screen" class="screen">
+      <h1>1:1 운빨 대전</h1>
+      <p>이름과 4자리 방번호를 입력하세요.</p>
+      <input id="player-name" type="text" maxlength="12" placeholder="이름">
+      <input id="room-code" type="text" inputmode="numeric" maxlength="4" placeholder="방번호 (4자리)">
+      <button id="join-button">대기실 입장</button>
+    </section>
+
+    <section id="waiting-screen" class="screen hidden">
+      <h2>대기실</h2>
+      <p>방번호: <strong id="waiting-room-code">----</strong></p>
+      <p id="waiting-status">상대를 기다리는 중...</p>
+    </section>
+
+    <section id="game-screen" class="game-layout hidden">
+      <div class="battle-area">
+        <div class="fighter-card">
+          <h2 id="my-name">나</h2>
+          <div class="hp-bar"><div id="my-hp" class="hp-fill"></div></div>
+          <p id="my-hp-text">100 / 100</p>
+          <div id="my-status" class="status-list"></div>
+        </div>
+
+        <div class="vs">VS</div>
+
+        <div class="fighter-card">
+          <h2 id="enemy-name">상대</h2>
+          <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div>
+          <p id="enemy-hp-text">100 / 100</p>
+          <div id="enemy-status" class="status-list"></div>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <div id="battle-log" class="battle-log"></div>
+        <div id="action-panel" class="action-panel">
+          <p id="turn-status">행동을 선택하세요.</p>
+          <div class="actions">
+            <button data-action="attack">공격</button>
+            <button data-action="defend">방어</button>
+            <button data-action="counter">역공</button>
+            <button data-action="heal">회복</button>
+            <button data-action="advanced">고급행동</button>
+          </div>
+          <div id="timer">5</div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
