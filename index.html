@@ -30,9 +30,7 @@
           <p id="my-hp-text">100 / 100</p>
           <div id="my-status" class="status-list"></div>
         </div>
-
         <div class="vs">VS</div>
-
         <div class="fighter-card">
           <h2 id="enemy-name">상대</h2>
           <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div>
@@ -42,7 +40,10 @@
       </div>
 
       <aside class="side-panel">
-        <div id="battle-log" class="battle-log"></div>
+        <div class="battle-log">
+          <div class="log-header"><strong>전투 로그</strong><span id="turn-number">턴 1</span></div>
+          <div id="battle-log-list"><p>전투를 준비하세요.</p></div>
+        </div>
         <div id="action-panel" class="action-panel">
           <p id="turn-status">행동을 선택하세요.</p>
           <div class="actions">
@@ -52,12 +53,12 @@
             <button data-action="heal">회복</button>
             <button data-action="advanced">고급행동</button>
           </div>
+          <div class="timer-label">첫 선택 후 5초</div>
           <div id="timer">5</div>
         </div>
       </aside>
     </section>
   </main>
-
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
