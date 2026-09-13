@@ -1,103 +1,34 @@
 * { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: Arial, sans-serif;
-  background: #f2f4f7;
-  color: #222;
-}
-
+body { margin: 0; min-height: 100vh; font-family: Arial, sans-serif; background: #f2f4f7; color: #222; }
 button, input { font: inherit; }
 button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
 .hidden { display: none !important; }
-
-.screen {
-  width: min(420px, 92vw);
-  margin: 0 auto;
-  padding-top: 15vh;
-  text-align: center;
-}
-
+.screen { width: min(420px, 92vw); margin: 0 auto; padding-top: 15vh; text-align: center; }
 .screen h1 { margin-bottom: 8px; }
-.screen input {
-  display: block;
-  width: 100%;
-  margin: 10px 0;
-  padding: 13px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.screen button {
-  width: 100%;
-  padding: 13px;
-  border: 0;
-  border-radius: 8px;
-  background: #4f7cff;
-  color: white;
-  font-weight: bold;
-}
-
-.game-layout {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  min-height: 100vh;
-}
-
-.battle-area {
-  padding: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 20px;
-}
-
-.fighter-card {
-  width: 40%;
-  min-width: 180px;
-  text-align: center;
-}
-
-.hp-bar {
-  height: 22px;
-  overflow: hidden;
-  border-radius: 11px;
-  background: #ddd;
-}
-
-.hp-fill {
-  width: 100%;
-  height: 100%;
-  background: #4caf50;
-  transition: width .25s;
-}
-
+.screen input { display: block; width: 100%; margin: 10px 0; padding: 13px; border: 1px solid #ccc; border-radius: 8px; }
+.screen button { width: 100%; padding: 13px; border: 0; border-radius: 8px; background: #4f7cff; color: white; font-weight: bold; }
+.game-layout { display: grid; grid-template-columns: 2fr 1fr; min-height: 100vh; }
+.battle-area { padding: 40px; display: flex; align-items: center; justify-content: space-around; gap: 20px; }
+.fighter-card { width: 40%; min-width: 180px; text-align: center; }
+.hp-bar { height: 22px; overflow: hidden; border-radius: 11px; background: #ddd; }
+.hp-fill { width: 100%; height: 100%; background: #4caf50; transition: width .25s; }
 .vs { font-size: 28px; font-weight: bold; }
-.status-list { min-height: 30px; margin-top: 10px; }
-
-.side-panel {
-  display: flex;
-  flex-direction: column;
-  background: white;
-  border-left: 1px solid #ddd;
-}
-
-.battle-log {
-  flex: 1;
-  min-height: 0;
-  padding: 20px;
-  overflow-y: auto;
-  border-bottom: 1px solid #ddd;
-}
-
+.status-list { min-height: 30px; margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.status { display: inline-block; padding: 4px 7px; border-radius: 999px; background: #eef1f5; font-size: 12px; }
+.side-panel { display: flex; flex-direction: column; background: white; border-left: 1px solid #ddd; }
+.battle-log { flex: 1; min-height: 0; padding: 18px; overflow-y: auto; border-bottom: 1px solid #ddd; }
+.log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; position: sticky; top: 0; background: white; padding-bottom: 8px; }
+#battle-log-list p { margin: 0 0 9px; padding-bottom: 9px; border-bottom: 1px solid #eee; font-size: 13px; line-height: 1.5; }
 .action-panel { padding: 20px; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .actions button { padding: 12px 6px; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; }
-#timer { margin-top: 15px; text-align: center; font-size: 28px; font-weight: bold; }
-
+.actions button:last-child { grid-column: 1 / -1; }
+.timer-label { margin-top: 13px; text-align: center; font-size: 12px; color: #777; }
+#timer { margin-top: 2px; text-align: center; font-size: 28px; font-weight: bold; }
 @media (max-width: 700px) {
   .game-layout { grid-template-columns: 1fr; }
-  .battle-area { padding: 20px; }
-  .side-panel { border-left: 0; border-top: 1px solid #ddd; }
+  .battle-area { padding: 20px 10px; }
+  .fighter-card { min-width: 130px; }
+  .side-panel { border-left: 0; border-top: 1px solid #ddd; min-height: 50vh; }
 }
