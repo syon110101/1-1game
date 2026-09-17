@@ -92,6 +92,48 @@
       skillScreen.classList.add('hidden');
       lobby.classList.remove('hidden');
     });
+
+    // 전투 로그를 처음 보는 사람도 바로 이해할 수 있게 표현을 바꿔줍니다.
+    const logBox = document.getElementById('battle-log-list');
+    function simpleLog(text) {
+      let t = text;
+      t = t.replace(/([^|]+)의 강공격 → ([^|]+) (\d+) 피해/g, '💥 $1가 $2에게 강공격! $3 데미지!');
+      t = t.replace(/([^|]+)의 일반 공격 → ([^|]+) (\d+) 피해/g, '⚔️ $1가 $2에게 공격! $3 데미지!');
+      t = t.replace(/([^|]+)의 빗나감/g, '💨 $1의 공격이 빗나갔다!');
+      t = t.replace(/([^|]+) 공격 빗나감/g, '💨 $1의 공격이 빗나갔다!');
+      t = t.replace(/([^|]+) 방어 (\d+)/g, '🛡️ $1가 방어했다! 방어력 $2');
+      t = t.replace(/([^|]+)의 강공격 → ([^|]+) 방어 (\d+), (\d+) 피해/g, '🛡️ $2가 방어했다! $1의 공격을 막아 $4 데미지만 받았다!');
+      t = t.replace(/([^|]+)의 일반 공격 → ([^|]+) 방어 (\d+), (\d+) 피해/g, '🛡️ $2가 방어했다! $1의 공격을 막아 $4 데미지만 받았다!');
+      t = t.replace(/([^|]+) 역공 성공! (\d+) 피해/g, '🔄 $1의 반격 성공! 상대에게 $2 데미지!');
+      t = t.replace(/([^|]+) 역공 실패! (\d+) 피해/g, '❌ $1의 반격 실패! $2 데미지를 받았다!');
+      t = t.replace(/([^|]+) 회복 (\d+), 운 상승!/g, '❤️ $1가 체력 $2 회복! 운도 상승!');
+      t = t.replace(/([^|]+) 회복 (\d+)/g, '❤️ $1가 체력 $2 회복!');
+      t = t.replace(/([^|]+) 출혈로 (\d+) 피해/g, '🩸 $1가 출혈 때문에 $2 데미지를 받았다!');
+      t = t.replace(/([^|]+) 스턴 성공!/g, '⚡ $1의 스턴 성공! 상대가 잠시 행동할 수 없다!');
+      t = t.replace(/([^|]+) 혼란 성공!/g, '🌀 $1의 혼란 성공! 상대의 행동이 바뀐다!');
+      t = t.replace(/([^|]+) 출혈 성공!/g, '🩸 $1의 출혈 공격 성공!');
+      t = t.replace(/([^|]+) 무적 발동!/g, '🛡️ $1가 무적이 되었다!');
+      t = t.replace(/([^|]+) 보호막 발동!/g, '🛡️ $1가 보호막을 얻었다!');
+      t = t.replace(/([^|]+) 처형 성공!/g, '☠️ $1의 처형 성공!');
+      t = t.replace(/([^|]+) 고급행동 실패! 다음 행동에 불이익이 생깁니다\./g, '❌ $1의 고급행동 실패! 다음 행동이 불리해진다!');
+      t = t.replace(/([^|]+)의 혼란으로 행동이 바뀌었습니다\./g, '🌀 $1은(는) 혼란 때문에 다른 행동을 했다!');
+      t = t.replace(/([^|]+)은\(는\) 스턴으로 행동하지 못했습니다\./g, '⚡ $1은(는) 스턴 때문에 행동하지 못했다!');
+      t = t.replace(/([^|]+)은\(는\) 휴식 상태입니다\./g, '😴 $1은(는) 쉬는 중이라 행동하지 못했다!');
+      t = t.replace(/([^|]+) 승리!/g, '🏆 $1 승리!');
+      return t;
+    }
+
+    if (logBox) {
+      const simplifyLogs = () => {
+        logBox.querySelectorAll('p').forEach(p => {
+          const original = p.dataset.originalLog || p.textContent;
+          if (!p.dataset.originalLog) p.dataset.originalLog = original;
+          p.textContent = simpleLog(original);
+        });
+      };
+      new MutationObserver(simplifyLogs).observe(logBox, { childList:true, subtree:true });
+      simplifyLogs();
+    }
   </script>
 </body>
 </html>
