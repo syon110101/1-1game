@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const SUPABASE_URL = 'https://qrqhqkzqncfyzcrzmltd.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_rR59AGdR8PF2VvIHc4TbjA_tte7SP3J';
+const SUPABASE_ANON_KEY = 'sb_publishable_rR59DGdR8PF2VvIHc4TbjA_tte7SP3J';
 const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -291,10 +291,10 @@ function basicDamage(target, amount) {
 }
 
 function applyHeal(p) {
-  const amount = rand(0,20);
+  const amount = rand(0,12);
   p.hp = clamp(p.hp + amount,0,MAX_HP);
   let text = `${p.name} 회복 ${amount}`;
-  if (chance(50)) { p.luck = clamp(p.luck + 10,0,100); p.luckBoostTurns = 2; text += ', 운 상승!'; }
+  if (chance(40)) { p.luck = clamp(p.luck + 10,0,100); p.luckBoostTurns = 2; text += ', 운 상승!'; }
   return text;
 }
 
@@ -311,7 +311,7 @@ function skillRoll(enemy) {
 
 function advancedAction(actor, enemy) {
   if (actor.advancedBlock > 0) return `${actor.name}은(는) 고급행동을 사용할 수 없습니다.`;
-  if (chance(40)) {
+  if (chance(55)) {
     const skill = skillRoll(enemy);
     if (skill === 'vampire') {
       const dmg = rand(0,20); const dealt = basicDamage(enemy,dmg); const heal = Math.round(dealt*0.8); actor.hp = clamp(actor.hp+heal,0,MAX_HP);
@@ -358,7 +358,6 @@ function resolveTurn(state, actionsById) {
 
   const attackResults = {};
   for (const id of ids) {
-    const enemy = state.players[id === ids[0] ? ids[1] : ids[0]];
     const p = state.players[id];
     const act = effective[id];
     if (act === 'attack') attackResults[id] = rollAttack(p);
@@ -367,7 +366,7 @@ function resolveTurn(state, actionsById) {
   for (const id of ids) {
     const enemyId = id === ids[0] ? ids[1] : ids[0];
     const p = state.players[id], enemy = state.players[enemyId];
-    const act = effective[id], enemyAct = effective[enemyId];
+    const act = effective[id];
     if (act === 'heal') logs.push(applyHeal(p));
     if (act === 'advanced') logs.push(advancedAction(p,enemy));
     if (act === 'defend') logs.push(`${p.name} 방어 ${rollDefense(p)}`);
