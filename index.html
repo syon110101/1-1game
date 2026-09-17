@@ -93,7 +93,7 @@
       lobby.classList.remove('hidden');
     });
 
-    // 전투 로그를 처음 보는 사람도 바로 이해할 수 있게 표현을 바꿔줍니다.
+    // 전투 로그를 직관적인 표현으로 바꿉니다.
     const logBox = document.getElementById('battle-log-list');
     function simpleLog(text) {
       let t = text;
@@ -127,8 +127,9 @@
       const simplifyLogs = () => {
         logBox.querySelectorAll('p').forEach(p => {
           const original = p.dataset.originalLog || p.textContent;
+          const simplified = simpleLog(original);
           if (!p.dataset.originalLog) p.dataset.originalLog = original;
-          p.textContent = simpleLog(original);
+          if (p.textContent !== simplified) p.textContent = simplified;
         });
       };
       new MutationObserver(simplifyLogs).observe(logBox, { childList:true, subtree:true });
