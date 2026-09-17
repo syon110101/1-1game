@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>1:1 운빨 대전</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .secondary-button { width:100%; margin-top:10px; padding:13px; border:1px solid #ccc; border-radius:8px; background:#fff; color:#333; font-weight:bold; }
+    .skill-list { text-align:left; max-height:60vh; overflow-y:auto; margin:15px 0; }
+    .skill-card { background:#f7f8fa; border:1px solid #e1e4e8; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+    .skill-card strong { font-size:16px; }
+    .skill-card p { margin:7px 0 0; font-size:13px; line-height:1.55; color:#555; }
+    #back-to-lobby { width:100%; padding:13px; border:0; border-radius:8px; background:#4f7cff; color:white; font-weight:bold; }
+  </style>
 </head>
 <body>
   <main id="app">
@@ -18,11 +26,11 @@
     </section>
 
     <section id="skill-screen" class="screen hidden">
-      <h2>스킬 설명</h2>
+      <h2>⚔️ 스킬 설명</h2>
       <div class="skill-list">
-        <div class="skill-card"><strong>⚔️ 공격</strong><p>일반적인 공격입니다. 확률에 따라 강공격, 일반 공격, 빗나감이 결정됩니다.</p></div>
+        <div class="skill-card"><strong>⚔️ 공격</strong><p>기본 공격입니다. 확률에 따라 강공격, 일반 공격, 빗나감이 결정됩니다.</p></div>
         <div class="skill-card"><strong>🛡️ 방어</strong><p>상대의 공격 피해를 줄입니다. 방어 수치가 높을수록 받는 피해가 감소합니다.</p></div>
-        <div class="skill-card"><strong>🔄 역공</strong><p>상대가 공격할 때 반격을 시도합니다. 성공하면 상대에게 피해를 주지만 실패하면 더 큰 피해를 받을 수 있습니다.</p></div>
+        <div class="skill-card"><strong>🔄 역공</strong><p>상대가 공격할 때 반격을 시도합니다. 성공하면 상대에게 피해를 주지만 실패하면 피해를 받을 수 있습니다.</p></div>
         <div class="skill-card"><strong>❤️ 회복</strong><p>체력을 0~12 회복합니다. 40% 확률로 운이 10% 상승합니다.</p></div>
         <div class="skill-card"><strong>✨ 고급행동</strong><p>55% 확률로 특수 효과가 발동합니다. 흡혈, 스턴, 혼란, 출혈, 무적, 보호막, 처형 등의 효과가 있습니다. 실패하면 다음 행동에 불이익이 생길 수 있습니다.</p></div>
       </div>
@@ -73,5 +81,17 @@
     </section>
   </main>
   <script type="module" src="js/main.js"></script>
+  <script>
+    const lobby = document.getElementById('lobby-screen');
+    const skillScreen = document.getElementById('skill-screen');
+    document.getElementById('skill-info-button').addEventListener('click', () => {
+      lobby.classList.add('hidden');
+      skillScreen.classList.remove('hidden');
+    });
+    document.getElementById('back-to-lobby').addEventListener('click', () => {
+      skillScreen.classList.add('hidden');
+      lobby.classList.remove('hidden');
+    });
+  </script>
 </body>
 </html>
