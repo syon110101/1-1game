@@ -14,6 +14,19 @@
       <input id="player-name" type="text" maxlength="12" placeholder="이름">
       <input id="room-code" type="text" inputmode="numeric" maxlength="4" placeholder="방번호 (4자리)">
       <button id="join-button">대기실 입장</button>
+      <button id="skill-info-button" class="secondary-button" type="button">스킬 설명</button>
+    </section>
+
+    <section id="skill-screen" class="screen hidden">
+      <h2>스킬 설명</h2>
+      <div class="skill-list">
+        <div class="skill-card"><strong>⚔️ 공격</strong><p>일반적인 공격입니다. 확률에 따라 강공격, 일반 공격, 빗나감이 결정됩니다.</p></div>
+        <div class="skill-card"><strong>🛡️ 방어</strong><p>상대의 공격 피해를 줄입니다. 방어 수치가 높을수록 받는 피해가 감소합니다.</p></div>
+        <div class="skill-card"><strong>🔄 역공</strong><p>상대가 공격할 때 반격을 시도합니다. 성공하면 상대에게 피해를 주지만 실패하면 더 큰 피해를 받을 수 있습니다.</p></div>
+        <div class="skill-card"><strong>❤️ 회복</strong><p>체력을 0~12 회복합니다. 40% 확률로 운이 10% 상승합니다.</p></div>
+        <div class="skill-card"><strong>✨ 고급행동</strong><p>55% 확률로 특수 효과가 발동합니다. 흡혈, 스턴, 혼란, 출혈, 무적, 보호막, 처형 등의 효과가 있습니다. 실패하면 다음 행동에 불이익이 생길 수 있습니다.</p></div>
+      </div>
+      <button id="back-to-lobby" type="button">돌아가기</button>
     </section>
 
     <section id="waiting-screen" class="screen hidden">
