@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-const SUPABASE_URL = 'https://qrqhqkzqncfyzcrzmltd.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ROJ3cidIW4SC62lRjrvAvg_wGipLHVu';
+const SUPABASE_URL = 'https://ilkfwfoxqrlmjficefer.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_hQdAtV79QuzoxqK1rTYmHg_vNj5Pnz8';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false } });
 const $ = s => document.querySelector(s);
 const lobbyScreen=$('#lobby-screen'), waitingScreen=$('#waiting-screen'), gameScreen=$('#game-screen'), joinButton=$('#join-button');
